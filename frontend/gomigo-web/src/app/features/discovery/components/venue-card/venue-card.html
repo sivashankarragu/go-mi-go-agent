@@ -1,0 +1,86 @@
+@let v = venue();
+<article
+  class="glass group relative flex h-full flex-col gap-3 overflow-hidden rounded-2xl p-4 transition duration-300 hover:-translate-y-0.5 hover:border-white/20 hover:bg-white/[0.07]"
+>
+  <!-- Hover glow -->
+  <div aria-hidden="true" class="pointer-events-none absolute -right-16 -top-16 h-40 w-40 rounded-full bg-glow-blue/0 blur-3xl transition duration-500 group-hover:bg-glow-blue/20"></div>
+
+  <div class="flex items-center justify-between gap-2">
+    <div class="flex items-center gap-2">
+      <span class="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-gradient-to-br from-glow-blue/25 to-glow-violet/25 text-white">
+        <span class="material-symbols-outlined text-[22px]">{{ icon() }}</span>
+      </span>
+      <span class="rounded-full bg-white/5 px-2 py-0.5 text-[11px] text-slate-400">#{{ v.rank }} · {{ v.category }}</span>
+    </div>
+    <span
+      class="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium"
+      [class]="
+        v.verificationStatus === 'Verified'
+          ? 'bg-glow-teal/15 text-glow-teal'
+          : v.verificationStatus === 'PartiallyVerified'
+            ? 'bg-white/5 text-slate-400'
+            : 'bg-amber-400/15 text-amber-300'
+      "
+    >
+      <span class="material-symbols-outlined icon-filled text-[13px]">{{ v.verificationStatus === 'Unverified' ? 'help' : 'verified' }}</span>
+      {{ verificationLabel() }}
+    </span>
+  </div>
+
+  <div>
+    <h3 class="text-base font-semibold leading-snug text-white">{{ v.name }}</h3>
+    <p class="mt-1 flex items-center gap-1 text-xs text-slate-400">
+      <span class="material-symbols-outlined text-[14px] text-glow-teal">location_on</span>
+      <span class="truncate">{{ where() ?? 'Location unknown' }}</span>
+    </p>
+    @if (v.description) {
+      <p class="mt-2 line-clamp-2 text-sm text-slate-300/80">{{ v.description }}</p>
+    }
+  </div>
+
+  <div class="flex flex-wrap gap-1.5 text-xs">
+    <span class="inline-flex items-center gap-1 rounded-lg bg-white/5 px-2 py-1 text-slate-200">
+      <span class="material-symbols-outlined text-[14px] text-slate-400">payments</span>
+      @if (v.estimatedCostPerPerson !== null) {
+        {{ v.estimatedCostPerPerson === 0 ? 'Free' : (v.currency === 'INR' ? '₹' : v.currency + ' ') + (v.estimatedCostPerPerson | number: '1.0-0') }}
+      } @else {
+        <span class="text-slate-500">Price unknown</span>
+      }
+    </span>
+    <span class="inline-flex max-w-full items-center gap-1 rounded-lg bg-white/5 px-2 py-1 text-slate-200" [title]="v.openingHours ?? ''">
+      <span class="material-symbols-outlined text-[14px] text-slate-400">schedule</span>
+      <span class="truncate">{{ v.openingHours ?? 'Hours unknown' }}</span>
+    </span>
+    @if (v.suggestedVisitMinutes !== null) {
+      <span class="inline-flex items-center gap-1 rounded-lg bg-white/5 px-2 py-1 text-slate-200">
+        <span class="material-symbols-outlined text-[14px] text-slate-400">timer</span>~{{ v.suggestedVisitMinutes }} min
+      </span>
+    }
+  </div>
+
+  @if (v.evidence) {
+    <blockquote class="line-clamp-3 border-l-2 border-glow-teal/40 pl-2.5 text-xs italic text-slate-400">“{{ v.evidence }}”</blockquote>
+  }
+
+  @if (v.warnings.length) {
+    <ul class="flex flex-col gap-1">
+      @for (w of v.warnings; track w) {
+        <li class="flex items-start gap-1 text-xs text-amber-200/80">
+          <span class="material-symbols-outlined mt-px text-[13px]">info</span>{{ w }}
+        </li>
+      }
+    </ul>
+  }
+
+  <div class="mt-auto flex items-center justify-between gap-2 border-t border-white/5 pt-3 text-[11px] text-slate-500">
+    @if (v.sourceUrl) {
+      <a [href]="v.sourceUrl" target="_blank" rel="noopener noreferrer" class="inline-flex min-w-0 items-center gap-1 text-glow-blue hover:underline">
+        <span class="truncate">{{ v.sourceName }}</span>
+        <span class="material-symbols-outlined text-[13px]">north_east</span>
+      </a>
+    } @else {
+      <span class="truncate">{{ v.sourceName }}</span>
+    }
+    <span class="shrink-0">Checked {{ v.lastCheckedUtc | date: 'MMM d, h:mm a' }}</span>
+  </div>
+</article>

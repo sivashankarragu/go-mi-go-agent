@@ -1,0 +1,102 @@
+@let a = agent();
+<details class="glass group overflow-hidden rounded-2xl" [open]="a.isActive">
+  <summary class="flex cursor-pointer list-none items-center justify-between gap-3 p-4">
+    <span class="flex min-w-0 items-center gap-3">
+      <span class="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-gradient-to-br from-glow-blue/30 to-glow-teal/30 text-glow-teal">
+        <span class="material-symbols-outlined text-[20px]">travel_explore</span>
+      </span>
+      <span class="min-w-0">
+        @if (a.isSimulated) {
+          <span class="block truncate text-sm font-medium text-white">Demo agent (simulated)</span>
+          <span class="block truncate text-xs text-slate-400">Demo mode · no real website visited · sample data only</span>
+        } @else {
+          <span class="block truncate text-sm font-medium text-white">
+            {{ a.isActive ? 'Agent is browsing' : 'Agent browsed' }} {{ a.sourceName }}
+          </span>
+          <a
+            [href]="a.startUrl"
+            target="_blank"
+            rel="noopener noreferrer"
+            (click)="$event.stopPropagation()"
+            class="block truncate text-xs text-glow-blue hover:underline"
+            >{{ startHost() }}</a
+          >
+        }
+      </span>
+    </span>
+    <span class="flex shrink-0 items-center gap-2">
+      @if (a.isActive) {
+        <span class="inline-flex items-center gap-1.5 rounded-full bg-rose-500/15 px-2 py-0.5 text-[11px] font-semibold text-rose-300">
+          <span class="relative flex h-2 w-2">
+            <span class="absolute inline-flex h-full w-full animate-ping rounded-full bg-rose-400 opacity-75"></span>
+            <span class="relative inline-flex h-2 w-2 rounded-full bg-rose-400"></span>
+          </span>
+          Live
+        </span>
+      } @else {
+        <span class="rounded-full bg-white/5 px-2 py-0.5 text-[11px] text-slate-400">{{ a.steps.length }} steps</span>
+      }
+      <span class="material-symbols-outlined text-[18px] text-slate-500 transition-transform group-open:rotate-180">expand_more</span>
+    </span>
+  </summary>
+
+  <div class="flex flex-col gap-3 px-4 pb-4">
+    @if (liveView(); as src) {
+      <div class="relative aspect-video w-full overflow-hidden rounded-xl border border-white/10 bg-black/40">
+        <iframe
+          [src]="src"
+          title="Live view of the research agent's browser"
+          class="h-full w-full border-0"
+          sandbox="allow-scripts allow-same-origin"
+          referrerpolicy="no-referrer"
+          loading="lazy"
+        ></iframe>
+      </div>
+      <a [href]="a.liveViewUrl" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-1 self-start text-xs text-glow-blue hover:underline">
+        <span class="material-symbols-outlined text-[14px]">open_in_new</span>
+        Open the live view in a new tab
+      </a>
+    } @else if (latestScreenshot(); as shot) {
+      <a [href]="shot" target="_blank" rel="noopener noreferrer" class="block">
+        <img [src]="shot" (error)="markBrokenSrc(shot)" alt="Last screen the research agent saw" loading="lazy" class="w-full rounded-xl border border-white/10" />
+      </a>
+      <span class="text-xs text-slate-500">Last screen the agent saw · click to enlarge</span>
+    } @else if (a.isActive && a.steps.length === 0) {
+      <div class="skeleton grid aspect-video w-full place-items-center rounded-xl text-xs text-slate-400">Waiting for the agent's browser…</div>
+    }
+
+    @if (a.steps.length) {
+      <ol class="flex flex-col gap-1.5">
+        @for (step of a.steps; track step.id; let i = $index) {
+          <li class="flex items-center gap-3 text-sm animate-fade-in">
+            <span class="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-white/5 text-[11px] text-slate-400">{{ i + 1 }}</span>
+            <span class="min-w-0 flex-1 text-slate-200">{{ step.action }}</span>
+            @if (step.duration) {
+              <span class="shrink-0 text-xs text-slate-500">{{ step.duration }}</span>
+            }
+            @if (step.screenshotUrl && !brokenShots().has(step.screenshotUrl)) {
+              <a
+                [href]="screenshotSrc(step.screenshotUrl)"
+                target="_blank"
+                rel="noopener noreferrer"
+                class="shrink-0"
+                [attr.aria-label]="'Screenshot of step ' + (i + 1)"
+              >
+                <img
+                  [src]="screenshotSrc(step.screenshotUrl)"
+                  (error)="markBroken(step.screenshotUrl)"
+                  alt=""
+                  loading="lazy"
+                  class="h-10 w-16 rounded border border-white/10 object-cover object-top"
+                />
+              </a>
+            }
+          </li>
+        }
+      </ol>
+    }
+    <span class="text-xs text-slate-500">
+      {{ a.isSimulated ? 'Simulated steps for the demo' : 'Research by a TinyFish web agent in a real browser' }} · updated {{ a.updatedAtUtc | date: 'h:mm:ss a' }}
+    </span>
+  </div>
+</details>

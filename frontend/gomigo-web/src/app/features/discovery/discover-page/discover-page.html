@@ -1,0 +1,388 @@
+<div class="relative isolate min-h-[calc(100dvh-4rem)]">
+  <!-- Aurora background -->
+  <div aria-hidden="true" class="pointer-events-none fixed inset-0 -z-10 overflow-hidden">
+    <div class="absolute -top-56 left-[calc(50%-24rem)] h-[48rem] w-[48rem] rounded-full bg-glow-blue/25 blur-[140px] animate-aurora"></div>
+    <div class="absolute top-24 -left-48 h-[34rem] w-[34rem] rounded-full bg-glow-violet/20 blur-[130px] animate-aurora [animation-delay:-7s]"></div>
+    <div class="absolute top-72 -right-40 h-[36rem] w-[36rem] rounded-full bg-glow-teal/15 blur-[130px] animate-aurora [animation-delay:-13s]"></div>
+    <div class="absolute inset-0 bg-[radial-gradient(rgb(255_255_255/0.05)_1px,transparent_1px)] [background-size:28px_28px] [mask-image:radial-gradient(ellipse_at_top,black_30%,transparent_75%)]"></div>
+  </div>
+
+  <!-- Stage: centred on landing, docked to the top once a search starts -->
+  <section
+    class="mx-auto w-full max-w-3xl px-4 transition-[padding] duration-700 ease-out"
+    [class]="docked() ? 'pt-4' : expanded() ? 'pt-[9vh] sm:pt-[12vh]' : 'pt-[16vh] sm:pt-[20vh]'"
+  >
+    @if (!docked()) {
+      <div class="text-center animate-fade-up">
+        <span class="glass inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs text-slate-300">
+          <span class="relative flex h-2 w-2">
+            <span class="absolute inline-flex h-full w-full animate-ping rounded-full bg-glow-teal opacity-70"></span>
+            <span class="relative inline-flex h-2 w-2 rounded-full bg-glow-teal"></span>
+          </span>
+          Live web research by TinyFish agents
+        </span>
+        <h1 class="mt-5 text-4xl font-semibold tracking-tight text-white sm:text-6xl">
+          Where to <span class="text-gradient">next?</span>
+        </h1>
+        <p class="mx-auto mt-3 max-w-xl text-base text-slate-400 sm:text-lg">
+          Real places and events near you, matched to your time, budget and mood.
+        </p>
+      </div>
+    }
+
+    <!-- Search box (expands on focus) -->
+    <form
+      #searchBox
+      [formGroup]="form"
+      (ngSubmit)="submit()"
+      (focusin)="onSearchFocusIn()"
+      (focusout)="onSearchFocusOut($event)"
+      class="relative"
+      [class.mt-8]="!docked()"
+      novalidate
+    >
+      <div class="relative">
+      <div
+        class="rounded-[28px] bg-gradient-to-r from-glow-blue/60 via-glow-teal/40 to-glow-violet/60 p-px transition-shadow duration-500"
+        [class]="expanded() ? 'shadow-[0_0_70px_-12px_rgba(79,140,255,0.65)]' : 'shadow-[0_0_40px_-20px_rgba(79,140,255,0.5)]'"
+      >
+        <div class="flex items-center gap-2 rounded-[27px] bg-ink-900/90 px-4 backdrop-blur-xl sm:px-5" [class]="docked() ? 'py-2.5' : 'py-3.5 sm:py-4'">
+          <span class="material-symbols-outlined shrink-0 text-[22px]" [class]="usingCurrentLocation() ? 'text-glow-teal' : 'text-slate-400'">
+            {{ usingCurrentLocation() ? 'my_location' : coordinateSource() === 'place' ? 'location_on' : 'search' }}
+          </span>
+
+          <div class="relative min-w-0 flex-1">
+            <input
+              #locationInput
+              id="location-input"
+              formControlName="locationText"
+              (input)="onLocationTyped($any($event.target).value)"
+              (keydown)="onLocationKeydown($event)"
+              type="text"
+              autocomplete="off"
+              role="combobox"
+              aria-label="Where are you? Search a neighbourhood, street or venue"
+              aria-autocomplete="list"
+              aria-controls="place-suggestions"
+              [attr.aria-expanded]="suggestionsOpen() && suggestions().length > 0"
+              [attr.aria-activedescendant]="activeSuggestion() >= 0 ? 'place-option-' + activeSuggestion() : null"
+              class="w-full bg-transparent text-white focus:outline-none"
+              [class]="docked() ? 'text-base' : 'text-lg sm:text-xl'"
+            />
+            @if (!hasText()) {
+              <span
+                aria-hidden="true"
+                class="pointer-events-none absolute inset-y-0 left-0 flex items-center truncate text-slate-500"
+                [class]="docked() ? 'text-base' : 'text-lg sm:text-xl'"
+              >
+                Try “{{ typedPlaceholder() }}<span class="animate-caret text-glow-teal">|</span>”
+              </span>
+            }
+          </div>
+
+          @if (suggestionsLoading()) {
+            <span class="material-symbols-outlined animate-spin text-[18px] text-slate-500">progress_activity</span>
+          }
+          @if (hasText()) {
+            <button type="button" (click)="clearLocation()" class="rounded-full p-1.5 text-slate-500 transition hover:bg-white/10 hover:text-white" aria-label="Clear">
+              <span class="material-symbols-outlined text-[18px]">close</span>
+            </button>
+          }
+          <button
+            type="button"
+            (click)="useMyLocation()"
+            [disabled]="locating()"
+            class="rounded-full p-2 transition hover:bg-white/10 disabled:opacity-60"
+            [class]="usingCurrentLocation() ? 'text-glow-teal' : 'text-slate-300 hover:text-white'"
+            title="Use my current location"
+            aria-label="Use my current location"
+          >
+            <span class="material-symbols-outlined text-[20px]" [class.animate-spin]="locating()">{{ locating() ? 'progress_activity' : 'my_location' }}</span>
+          </button>
+          <button
+            type="submit"
+            [disabled]="session.isBusy()"
+            class="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-gradient-to-br from-glow-blue to-glow-teal text-ink-950 shadow-[0_0_24px_-6px_rgba(45,212,191,0.8)] transition hover:scale-105 disabled:opacity-60"
+            aria-label="Find my plan"
+          >
+            <span class="material-symbols-outlined text-[22px]" [class.animate-spin]="session.isBusy()">{{ session.isBusy() ? 'progress_activity' : 'arrow_forward' }}</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Place suggestions (overlay) -->
+      @if (suggestionsOpen() && hasText() && (suggestions().length || (!suggestionsLoading() && form.controls.locationText.value.trim().length >= 2))) {
+        <ul
+          id="place-suggestions"
+          role="listbox"
+          class="absolute left-0 right-0 top-full z-30 mt-2 overflow-hidden rounded-2xl border border-white/10 bg-ink-900/95 py-1.5 shadow-2xl shadow-black/50 backdrop-blur-xl animate-fade-up"
+        >
+          @for (place of suggestions(); track place.label; let i = $index) {
+            <li
+              [id]="'place-option-' + i"
+              role="option"
+              [attr.aria-selected]="i === activeSuggestion()"
+              (mousedown)="$event.preventDefault(); selectSuggestion(place)"
+              (mouseenter)="activeSuggestion.set(i)"
+              class="flex cursor-pointer items-center gap-3 px-4 py-2.5 transition-colors"
+              [class]="i === activeSuggestion() ? 'bg-white/10' : ''"
+            >
+              <span class="grid h-8 w-8 shrink-0 place-items-center rounded-full" [class]="place.kind === 'Neighbourhood' ? 'bg-glow-blue/20 text-glow-blue' : 'bg-white/5 text-slate-400'">
+                <span class="material-symbols-outlined text-[18px]">{{ placeIcon(place.kind) }}</span>
+              </span>
+              <span class="min-w-0">
+                <span class="block truncate text-sm font-medium text-white">{{ place.name }}</span>
+                @if (place.detail) {
+                  <span class="block truncate text-xs text-slate-400">{{ place.detail }}</span>
+                }
+              </span>
+            </li>
+          } @empty {
+            <li class="px-4 py-3 text-sm text-slate-400">No matching places. Press Enter to search with what you typed.</li>
+          }
+          <li class="px-4 pb-1 pt-1.5 text-right text-[10px] text-slate-500">Places © OpenStreetMap contributors</li>
+        </ul>
+      }
+      </div>
+
+      @if (inputError(); as err) {
+        <p class="mt-2 pl-5 text-sm text-rose-300 animate-fade-in">{{ err }}</p>
+      } @else if (locationMessage(); as msg) {
+        <p class="mt-2 pl-5 text-sm text-glow-teal/90 animate-fade-in">{{ msg }}</p>
+      }
+
+      <!-- Options panel: time, budget, mood -->
+      @if (expanded()) {
+        <div class="glass mt-3 space-y-4 rounded-3xl bg-ink-900/60 p-4 sm:p-5 animate-fade-up">
+          <div class="animate-fade-up [animation-delay:40ms]">
+            <p class="mb-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">Time</p>
+            <div class="flex flex-wrap gap-2">
+              @for (t of timePresets; track t.minutes) {
+                <button type="button" (click)="selectTime(t.minutes)" [attr.aria-pressed]="selectedMinutes() === t.minutes"
+                  class="rounded-full border px-3.5 py-1.5 text-sm transition"
+                  [class]="selectedMinutes() === t.minutes ? 'border-transparent bg-gradient-to-r from-glow-blue to-glow-teal font-semibold text-ink-950 shadow-[0_0_20px_-6px_rgba(45,212,191,0.7)]' : 'border-white/10 bg-white/5 text-slate-300 hover:bg-white/10'">
+                  {{ t.label }}
+                </button>
+              }
+            </div>
+          </div>
+          <div class="animate-fade-up [animation-delay:100ms]">
+            <p class="mb-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">Budget per person</p>
+            <div class="flex flex-wrap gap-2">
+              @for (b of budgetPresets; track b.amount) {
+                <button type="button" (click)="selectBudget(b.amount)" [attr.aria-pressed]="selectedBudget() === b.amount"
+                  class="rounded-full border px-3.5 py-1.5 text-sm transition"
+                  [class]="selectedBudget() === b.amount ? 'border-transparent bg-gradient-to-r from-glow-blue to-glow-teal font-semibold text-ink-950 shadow-[0_0_20px_-6px_rgba(45,212,191,0.7)]' : 'border-white/10 bg-white/5 text-slate-300 hover:bg-white/10'">
+                  {{ b.label }}
+                </button>
+              }
+            </div>
+          </div>
+          <div class="animate-fade-up [animation-delay:160ms]">
+            <p class="mb-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">Mood</p>
+            <div class="flex flex-wrap gap-2">
+              @for (m of moods; track m.category) {
+                <button type="button" (click)="selectMood(m.category)" [attr.aria-pressed]="selectedCategory() === m.category" [title]="m.subtitle"
+                  class="inline-flex items-center gap-1.5 rounded-full border px-3.5 py-1.5 text-sm transition"
+                  [class]="selectedCategory() === m.category ? 'border-transparent bg-gradient-to-r from-glow-blue to-glow-teal font-semibold text-ink-950 shadow-[0_0_20px_-6px_rgba(45,212,191,0.7)]' : 'border-white/10 bg-white/5 text-slate-300 hover:bg-white/10'">
+                  <span class="material-symbols-outlined text-[16px]">{{ m.icon }}</span>
+                  {{ m.title }}
+                </button>
+              }
+            </div>
+          </div>
+          <div class="flex items-center justify-between gap-3 pt-1 animate-fade-up [animation-delay:220ms]">
+            <span class="hidden text-xs text-slate-500 sm:block">Pick a place above, or press Enter</span>
+            <button type="submit" [disabled]="session.isBusy()"
+              class="inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-glow-blue to-glow-teal px-5 py-2.5 text-sm font-semibold text-ink-950 shadow-[0_0_30px_-8px_rgba(79,140,255,0.9)] transition hover:brightness-110 disabled:opacity-60">
+              Find my plan
+              <span class="material-symbols-outlined text-[18px]">arrow_forward</span>
+            </button>
+          </div>
+        </div>
+      }
+    </form>
+
+    <!-- Landing: quick ideas for the area -->
+    @if (!docked() && !expanded() && curations(); as c) {
+      <div class="mt-6 flex flex-wrap justify-center gap-2">
+        @for (idea of c.curations; track idea.key; let i = $index) {
+          <button
+            type="button"
+            (click)="useQuickIdea(idea)"
+            class="glass inline-flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-sm text-slate-300 transition hover:bg-white/10 hover:text-white animate-fade-up"
+            [style.animation-delay.ms]="200 + i * 70"
+            [title]="idea.description"
+          >
+            <span class="material-symbols-outlined text-[16px] text-glow-teal">{{ quickIdeaIcon(idea) }}</span>
+            {{ idea.title }}{{ c.area !== c.city ? ' · ' + c.area : '' }}
+          </button>
+        }
+      </div>
+    }
+
+    <!-- Docked: current filters, tap to edit -->
+    @if (docked() && !expanded()) {
+      <div class="mt-3 flex flex-wrap items-center gap-2 text-xs animate-fade-in">
+        <button type="button" (click)="locationInput.focus()" class="glass inline-flex items-center gap-1 rounded-full px-3 py-1 text-slate-300 hover:bg-white/10">
+          <span class="material-symbols-outlined text-[14px]">schedule</span>{{ selectedTimeLabel() }}
+        </button>
+        <button type="button" (click)="locationInput.focus()" class="glass inline-flex items-center gap-1 rounded-full px-3 py-1 text-slate-300 hover:bg-white/10">
+          <span class="material-symbols-outlined text-[14px]">payments</span>{{ selectedBudgetLabel() }}
+        </button>
+        <button type="button" (click)="locationInput.focus()" class="glass inline-flex items-center gap-1 rounded-full px-3 py-1 text-slate-300 hover:bg-white/10">
+          <span class="material-symbols-outlined text-[14px]">{{ selectedMood().icon }}</span>{{ selectedMood().title }}
+        </button>
+        <button type="button" (click)="newSearch()" class="ml-auto inline-flex items-center gap-1 rounded-full px-3 py-1 text-slate-400 hover:text-white">
+          <span class="material-symbols-outlined text-[14px]">refresh</span>New search
+        </button>
+      </div>
+    }
+  </section>
+
+  <!-- Results -->
+  @if (docked()) {
+    <section class="mx-auto w-full max-w-5xl px-4 pb-20 pt-6" aria-live="polite">
+      <!-- Status -->
+      <div class="glass relative overflow-hidden rounded-2xl animate-fade-up">
+        @if (session.isBusy()) {
+          <div class="absolute inset-x-0 top-0 h-0.5 overflow-hidden bg-white/5">
+            <div class="h-full w-1/3 bg-gradient-to-r from-transparent via-glow-teal to-transparent animate-progress"></div>
+          </div>
+        }
+        <details class="group">
+          <summary class="flex cursor-pointer list-none items-center gap-3 p-4">
+            @if (session.run(); as run) {
+              <span
+                class="inline-flex shrink-0 items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold"
+                [class]="run.status === 'Completed' ? 'bg-glow-teal/15 text-glow-teal' : run.status === 'Failed' ? 'bg-rose-500/15 text-rose-300' : run.status === 'PartiallyCompleted' ? 'bg-amber-400/15 text-amber-300' : 'bg-glow-blue/15 text-glow-blue'"
+              >
+                @if (!run.isTerminal) {
+                  <span class="material-symbols-outlined animate-spin text-[14px]">progress_activity</span>
+                }
+                {{ statusLabels[run.status] }}
+              </span>
+              <span class="min-w-0 flex-1">
+                <span class="block truncate text-sm font-medium text-white">{{ run.request.locationText }}</span>
+                <span class="block truncate text-xs text-slate-400">{{ session.progress().at(-1)?.message ?? 'Starting…' }}</span>
+              </span>
+            } @else {
+              <span class="material-symbols-outlined animate-spin text-[18px] text-glow-blue">progress_activity</span>
+              <span class="flex-1 text-sm text-slate-300">Starting research…</span>
+            }
+            <span class="material-symbols-outlined text-[18px] text-slate-500 transition-transform group-open:rotate-180">expand_more</span>
+          </summary>
+          @if (session.progress().length) {
+            <ol class="mx-4 mb-4 space-y-1.5 border-l border-white/10 pl-4">
+              @for (p of session.progress(); track $index) {
+                <li class="relative text-xs text-slate-400">
+                  <span class="absolute -left-[21px] top-1.5 h-1.5 w-1.5 rounded-full bg-glow-teal/70"></span>
+                  <time class="mr-1.5 text-slate-500">{{ p.occurredAtUtc | date: 'h:mm:ss a' }}</time>{{ p.message }}
+                </li>
+              }
+            </ol>
+          }
+        </details>
+      </div>
+
+      @if (session.phase() === 'error') {
+        <div class="mt-4 flex items-start gap-3 rounded-2xl border border-rose-400/20 bg-rose-500/10 p-4 text-rose-200 animate-fade-up">
+          <span class="material-symbols-outlined">error</span>
+          <div>
+            <p class="font-medium">{{ session.error()?.message }}</p>
+            @for (e of fieldErrors(); track e[0]) {
+              <p class="mt-1 text-sm">{{ e[1].join(' ') }}</p>
+            }
+          </div>
+        </div>
+      }
+
+      @if (session.run(); as run) {
+        <!-- Watch the research agents -->
+        <div class="mt-4 space-y-3">
+          @for (agent of run.agentSessions; track agent.providerRunId) {
+            <app-agent-activity [agent]="agent" class="block animate-fade-up" />
+          }
+        </div>
+
+        @if (session.isPartial()) {
+          <div class="mt-4 flex items-start gap-3 rounded-2xl border border-amber-300/20 bg-amber-400/10 p-4 text-sm text-amber-200 animate-fade-up">
+            <span class="material-symbols-outlined text-[20px]">warning</span>
+            <p><span class="font-semibold">Partial results.</span> {{ run.error?.message }}</p>
+          </div>
+        }
+        @if (session.isFailed()) {
+          <div class="mt-4 flex items-start gap-3 rounded-2xl border border-rose-400/20 bg-rose-500/10 p-4 text-sm text-rose-200 animate-fade-up">
+            <span class="material-symbols-outlined text-[20px]">error</span>
+            <p>{{ run.error?.message ?? 'Research failed.' }}</p>
+          </div>
+        }
+        @if (session.canRetry()) {
+          <button type="button" (click)="session.retry()" class="glass mt-3 inline-flex items-center gap-1.5 rounded-full px-4 py-2 text-sm text-white hover:bg-white/10">
+            <span class="material-symbols-outlined text-[18px] text-glow-teal">refresh</span>
+            Retry research
+          </button>
+        }
+        @if (session.isEmpty()) {
+          <div class="mt-10 flex flex-col items-center gap-2 text-center text-slate-400 animate-fade-up">
+            <span class="material-symbols-outlined text-[40px] text-slate-500">search_off</span>
+            <p class="text-lg font-medium text-white">No suitable places found</p>
+            <p class="text-sm">Try a different mood, a bigger budget or more time.</p>
+          </div>
+        }
+        @if (session.noExactMatches()) {
+          <div class="mt-4 flex items-start gap-3 rounded-2xl border border-amber-300/20 bg-amber-400/10 p-4 text-amber-100 animate-fade-up">
+            <span class="material-symbols-outlined text-amber-300">search_off</span>
+            <div>
+              <p class="font-medium">Couldn't find exact results for "{{ searchedMood() }}"</p>
+              <p class="mt-0.5 text-sm text-amber-200/80">Nothing in that mood turned up near {{ run.request.locationText }}. Here are other options nearby, or try another mood.</p>
+            </div>
+          </div>
+        }
+
+        <!-- Loading skeletons -->
+        @if (!run.isTerminal && session.candidates().length === 0) {
+          <div class="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            @for (i of [1, 2, 3]; track i) {
+              <div class="skeleton h-60 rounded-2xl border border-white/5"></div>
+            }
+          </div>
+        }
+
+        <!-- Results grid -->
+        @if (session.exactMatches().length) {
+          <div class="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            @for (venue of session.exactMatches(); track venue.id; let i = $index) {
+              <app-venue-card [venue]="venue" class="block animate-fade-up" [style.animation-delay.ms]="i * 70" />
+            }
+          </div>
+        }
+
+        @if (session.otherOptions().length) {
+          @if (session.exactMatches().length) {
+            <details class="group mt-6">
+              <summary class="glass flex cursor-pointer list-none items-center justify-between rounded-2xl p-4 text-sm text-slate-300">
+                <span class="flex items-center gap-2">
+                  <span class="material-symbols-outlined text-[18px] text-slate-500">alt_route</span>
+                  {{ session.otherOptions().length }} other options nearby (not "{{ searchedMood() }}")
+                </span>
+                <span class="material-symbols-outlined text-[18px] text-slate-500 transition-transform group-open:rotate-180">expand_more</span>
+              </summary>
+              <div class="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                @for (venue of session.otherOptions(); track venue.id) {
+                  <app-venue-card [venue]="venue" class="block" />
+                }
+              </div>
+            </details>
+          } @else {
+            <div class="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              @for (venue of session.otherOptions(); track venue.id; let i = $index) {
+                <app-venue-card [venue]="venue" class="block animate-fade-up" [style.animation-delay.ms]="i * 70" />
+              }
+            </div>
+          }
+        }
+      }
+    </section>
+  }
+</div>

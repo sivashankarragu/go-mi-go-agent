@@ -1,0 +1,35 @@
+<header class="sticky top-0 z-50 border-b border-white/5 bg-ink-950/50 backdrop-blur-xl">
+  <div class="mx-auto flex h-16 max-w-6xl items-center justify-between gap-4 px-4">
+    <a routerLink="/" class="flex items-center gap-2">
+      <span class="grid h-8 w-8 place-items-center rounded-xl bg-gradient-to-br from-glow-blue to-glow-teal text-ink-950 shadow-[0_0_20px_-4px_rgba(45,212,191,0.7)]">
+        <span class="material-symbols-outlined icon-filled text-[18px]">near_me</span>
+      </span>
+      <span class="text-lg font-semibold tracking-tight text-white">Go<span class="text-gradient">Migo</span></span>
+    </a>
+
+    <div
+      class="glass inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-xs"
+      [title]="agentState() === 'demo' ? 'The API is using the offline demo data provider.' : ''"
+    >
+      @switch (agentState()) {
+        @case ('offline') {
+          <span class="inline-flex h-2 w-2 rounded-full bg-rose-400"></span>
+        }
+        @case ('checking') {
+          <span class="inline-flex h-2 w-2 rounded-full bg-slate-500"></span>
+        }
+        @default {
+          <span class="relative flex h-2 w-2">
+            <span class="absolute inline-flex h-full w-full animate-ping rounded-full opacity-75" [class]="agentState() === 'ready' ? 'bg-glow-teal' : 'bg-amber-400'"></span>
+            <span class="relative inline-flex h-2 w-2 rounded-full" [class]="agentState() === 'ready' ? 'bg-glow-teal' : 'bg-amber-400'"></span>
+          </span>
+        }
+      }
+      <span
+        class="font-medium"
+        [class]="agentState() === 'ready' ? 'text-glow-teal' : agentState() === 'demo' ? 'text-amber-300' : agentState() === 'offline' ? 'text-rose-300' : 'text-slate-400'"
+        >{{ agentLabel() }}</span
+      >
+    </div>
+  </div>
+</header>
